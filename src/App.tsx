@@ -4,11 +4,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LandingPage from './components/LandingPage';
 import MainApp from './components/MainApp';
-import AuthModal from './components/AuthModal';
 
 function App() {
   const [showLanding, setShowLanding] = useState(true);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     // Check if user has visited before
@@ -23,25 +21,17 @@ function App() {
     setShowLanding(false);
   };
 
-  const handleShowLogin = () => {
-    setShowAuthModal(true);
-  };
   return (
     <ThemeProvider>
       <AuthProvider>
-        <div className="min-h-screen transition-colors duration-300">
+        <div className="min-h-screen">
           <AnimatePresence mode="wait">
             {showLanding ? (
-              <LandingPage key="landing" onEnter={handleEnterApp} onLogin={handleShowLogin} />
+              <LandingPage key="landing" onEnter={handleEnterApp} />
             ) : (
               <MainApp key="main" />
             )}
           </AnimatePresence>
-          
-          <AuthModal
-            isOpen={showAuthModal}
-            onClose={() => setShowAuthModal(false)}
-          />
         </div>
       </AuthProvider>
     </ThemeProvider>

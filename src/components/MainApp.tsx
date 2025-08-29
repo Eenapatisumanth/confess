@@ -1,38 +1,38 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Campus, Confession, ReactionType } from '../types';
 import { mockConfessions } from '../utils/mockData';
 import { v4 as uuidv4 } from 'uuid';
-import Sidebar from './Sidebar';
+import Header from './Header';
 import ConfessionCard from './ConfessionCard';
 import PostModal from './PostModal';
 import AuthModal from './AuthModal';
-import UserHistory from './UserHistory';
+import MyConfessions from './MyConfessions';
+import ChatSidebar from './ChatSidebar';
+import CommunityChat from './CommunityChat';
 
 const MainApp: React.FC = () => {
   const { user } = useAuth();
   const [confessions, setConfessions] = useState<Confession[]>(mockConfessions);
-  const [selectedCampus, setSelectedCampus] = useState<Campus | 'all'>('all');
+  const [currentSection, setCurrentSection] = useState<'confessions' | 'communities'>('confessions');
   const [searchQuery, setSearchQuery] = useState('');
   const [showPostModal, setShowPostModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [currentView, setCurrentView] = useState<'feed' | 'groupfun' | 'history'>('feed');
+  const [showMyConfessions, setShowMyConfessions] = useState(false);
+  const [showChats, setShowChats] = useState(false);
+  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
 
-  // Filter confessions based on campus and search query
+  // Filter confessions based on section and search query
   const filteredConfessions = useMemo(() => {
     let filtered = confessions;
 
-    // Filter by view type
-    if (currentView === 'groupfun') {
+    // Filter by section type
+    if (currentSection === 'communities') {
       filtered = filtered.filter(confession => confession.isGroupFun);
-    } else if (currentView === 'feed') {
+    } else {
       filtered = filtered.filter(confession => !confession.isGroupFun);
-    }
-
-    // Filter by campus
-    if (selectedCampus !== 'all') {
-      filtered = filtered.filter(confession => confession.campus === selectedCampus);
     }
 
     // Filter by search query
@@ -44,9 +44,8 @@ const MainApp: React.FC = () => {
       );
     }
 
-    // Sort by creation date (newest first)
     return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [confessions, selectedCampus, searchQuery, currentView]);
+  }, [confessions, currentSection, searchQuery]);
 
   const handleCreatePost = () => {
     if (!user) {
@@ -64,7 +63,6 @@ const MainApp: React.FC = () => {
   ) => {
     if (!user) return;
 
-    // Create object URL for file preview
     const mediaUrl = mediaFile ? URL.createObjectURL(mediaFile) : undefined;
     const mediaType = mediaFile ? (mediaFile.type.startsWith('image/') ? 'image' : 'video') as 'image' | 'video' : undefined;
 
@@ -80,7 +78,7 @@ const MainApp: React.FC = () => {
       createdAt: new Date().toISOString(),
       reactions: [],
       comments: [],
-      isGroupFun: isGroupFun || false,
+      isGroupFun: isGroupFun || currentSection === 'communities',
       _count: {
         reactions: 0,
         comments: 0
@@ -88,11 +86,6 @@ const MainApp: React.FC = () => {
     };
 
     setConfessions(prev => [newConfession, ...prev]);
-    
-    // Add to user's history
-    if (user.confessionHistory) {
-      user.confessionHistory.push(newConfession.id);
-    }
   };
 
   const handleReact = (confessionId: string, reactionType: ReactionType) => {
@@ -103,7 +96,6 @@ const MainApp: React.FC = () => {
 
     setConfessions(prev => prev.map(confession => {
       if (confession.id === confessionId) {
-        // Check if user already reacted
         const existingReactionIndex = confession.reactions.findIndex(
           r => r.userId === user.id
         );
@@ -111,7 +103,6 @@ const MainApp: React.FC = () => {
         let updatedReactions = [...confession.reactions];
         
         if (existingReactionIndex >= 0) {
-          // Update existing reaction or remove if same type
           if (confession.reactions[existingReactionIndex].reactionType === reactionType) {
             updatedReactions.splice(existingReactionIndex, 1);
           } else {
@@ -121,7 +112,6 @@ const MainApp: React.FC = () => {
             };
           }
         } else {
-          // Add new reaction
           updatedReactions.push({
             id: uuidv4(),
             confessionId,
@@ -173,127 +163,153 @@ const MainApp: React.FC = () => {
     }));
   };
 
-  const getViewTitle = () => {
-    if (currentView === 'groupfun') {
-      return selectedCampus === 'all' ? 'Communities' : `${campusNames[selectedCampus]} Communities`;
-    } else if (currentView === 'history') {
-      return 'My Confession History';
-    }
-    return selectedCampus === 'all' ? 'All Confessions' : `${campusNames[selectedCampus]} Confessions`;
+  const handleDeleteConfession = (confessionId: string) => {
+    setConfessions(prev => prev.filter(confession => confession.id !== confessionId));
   };
 
-  const campusNames: Record<string, string> = {
-    vellore: 'VIT Vellore',
-    chennai: 'VIT Chennai',
-    bhopal: 'VIT Bhopal',
-    ap: 'VIT-AP'
+  const handleJoinCommunity = (confessionId: string) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setSelectedCommunity(confessionId);
   };
+
   return (
-    <div className="min-h-screen bg-black flex">
-      {/* Sidebar */}
-      <Sidebar
-        selectedCampus={selectedCampus}
-        onCampusChange={setSelectedCampus}
-        onCreatePost={handleCreatePost}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <Header
+        currentSection={currentSection}
+        onSectionChange={setCurrentSection}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        currentView={currentView}
-        onViewChange={setCurrentView}
+        onShowMyConfessions={() => setShowMyConfessions(true)}
+        onShowChats={() => setShowChats(true)}
+        onShowAuth={() => setShowAuthModal(true)}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto">
-          <div className="max-w-2xl mx-auto p-6">
-            {/* Header */}
-            <div className="mb-8">
-              <motion.h2
-                className="text-2xl font-bold text-white mb-2"
-                initial={{ opacity: 0, y: -20 }}
+      <main className="max-w-4xl mx-auto p-6">
+        {/* Section Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-2">
+              {currentSection === 'confessions' ? 'Anonymous Confessions' : 'Community Activities'}
+            </h2>
+            <p className="text-gray-300">
+              {currentSection === 'confessions' 
+                ? 'Share your thoughts anonymously with the VIT community'
+                : 'Join activities and connect with fellow students'
+              }
+            </p>
+          </div>
+          
+          <motion.button
+            onClick={handleCreatePost}
+            className={`flex items-center space-x-2 px-6 py-3 font-semibold rounded-lg shadow-lg transition-all ${
+              currentSection === 'communities'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+            } text-white`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Plus size={20} />
+            <span>
+              {currentSection === 'communities' ? 'Create Activity' : 'New Confession'}
+            </span>
+          </motion.button>
+        </div>
+
+        {/* Content Grid */}
+        <div className="space-y-6">
+          {filteredConfessions.length > 0 ? (
+            filteredConfessions.map((confession, index) => (
+              <motion.div
+                key={confession.id}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
               >
-                {getViewTitle()}
-              </motion.h2>
-              <p className="text-gray-300">
-                {currentView === 'history' 
-                  ? `${user?.confessionHistory?.length || 0} confession${(user?.confessionHistory?.length || 0) !== 1 ? 's' : ''} in your history`
-                  : `${filteredConfessions.length} ${currentView === 'groupfun' ? 'communit' + (filteredConfessions.length !== 1 ? 'ies' : 'y') : 'confession' + (filteredConfessions.length !== 1 ? 's' : '')} found`
+                <ConfessionCard
+                  confession={confession}
+                  onReact={handleReact}
+                  onComment={handleComment}
+                  onJoinCommunity={currentSection === 'communities' ? handleJoinCommunity : undefined}
+                />
+              </motion.div>
+            ))
+          ) : (
+            <motion.div
+              className="text-center py-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="text-8xl mb-6">
+                {currentSection === 'communities' ? '🌐' : '📝'}
+              </div>
+              <h3 className="text-2xl font-semibold text-white mb-4">
+                {searchQuery 
+                  ? `No ${currentSection} found` 
+                  : currentSection === 'communities' 
+                    ? 'No community activities yet' 
+                    : 'No confessions yet'
+                }
+              </h3>
+              <p className="text-gray-300 mb-8 max-w-md mx-auto">
+                {searchQuery 
+                  ? 'Try adjusting your search terms or browse all posts' 
+                  : currentSection === 'communities' 
+                    ? 'Be the first to create a community activity and bring students together!'
+                    : 'Be the first to share an anonymous confession with the community!'
                 }
               </p>
-            </div>
-
-            {/* Content Area */}
-            {currentView === 'history' ? (
-              <UserHistory confessions={confessions} />
-            ) : (
-              <div className="space-y-6">
-                {filteredConfessions.length > 0 ? (
-                  filteredConfessions.map((confession, index) => (
-                    <motion.div
-                      key={confession.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <ConfessionCard
-                        confession={confession}
-                        onReact={handleReact}
-                        onComment={handleComment}
-                      />
-                    </motion.div>
-                  ))
-                ) : (
-                  <motion.div
-                    className="text-center py-16"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <div className="text-6xl mb-4">
-                      {currentView === 'groupfun' ? '🌐' : '📝'}
-                    </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      {currentView === 'groupfun' ? 'No community posts found' : 'No confessions found'}
-                    </h3>
-                    <p className="text-gray-300 mb-6">
-                      {searchQuery 
-                        ? 'Try adjusting your search terms' 
-                        : currentView === 'groupfun' 
-                          ? 'Be the first to post in a community!' 
-                          : 'Be the first to share a confession!'
-                      }
-                    </p>
-                    {!searchQuery && (
-                      <button
-                        onClick={handleCreatePost}
-                        className={`px-6 py-3 text-white font-semibold rounded-lg transition-all ${
-                          currentView === 'groupfun'
-                            ? 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
-                            : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
-                        }`}
-                      >
-                        {currentView === 'groupfun' ? 'Create Community Post' : 'Share Your Story'}
-                      </button>
-                    )}
-                  </motion.div>
-                )}
-              </div>
-            )}
-          </div>
+              {!searchQuery && (
+                <button
+                  onClick={handleCreatePost}
+                  className={`px-8 py-3 text-white font-semibold rounded-lg transition-all ${
+                    currentSection === 'communities'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+                  }`}
+                >
+                  {currentSection === 'communities' ? 'Create First Activity' : 'Share First Confession'}
+                </button>
+              )}
+            </motion.div>
+          )}
         </div>
-      </div>
+      </main>
 
       {/* Modals */}
       <PostModal
         isOpen={showPostModal}
         onClose={() => setShowPostModal(false)}
         onSubmit={handleSubmitPost}
-        isGroupFun={currentView === 'groupfun'}
+        isGroupFun={currentSection === 'communities'}
       />
 
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
       />
+
+      <MyConfessions
+        isOpen={showMyConfessions}
+        onClose={() => setShowMyConfessions(false)}
+        confessions={confessions}
+        onDeleteConfession={handleDeleteConfession}
+      />
+
+      <ChatSidebar
+        isOpen={showChats}
+        onClose={() => setShowChats(false)}
+      />
+
+      {selectedCommunity && (
+        <CommunityChat
+          confessionId={selectedCommunity}
+          onClose={() => setSelectedCommunity(null)}
+        />
+      )}
     </div>
   );
 };

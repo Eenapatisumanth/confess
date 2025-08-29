@@ -1,9 +1,9 @@
 export interface User {
   id: string;
-  googleId: string;
-  anonymousName: string;
   email: string;
-  createdAt: string;
+  anonymous_name: string;
+  created_at: string;
+  anonymousName: string;
   confessionHistory: string[];
 }
 
@@ -42,27 +42,31 @@ export interface Reaction {
   reactionType: ReactionType;
 }
 
+export interface Chat {
+  id: string;
+  name: string;
+  isGroup: boolean;
+  participants: string[];
+  lastMessage?: string;
+  lastMessageAt?: string;
+  createdAt: string;
+}
+
+export interface Message {
+  id: string;
+  chatId: string;
+  userId: string;
+  message: string;
+  createdAt: string;
+}
+
 export type Campus = 'vellore' | 'chennai' | 'bhopal' | 'ap';
 export type ReactionType = 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 
 export interface AuthContextType {
   user: User | null;
-  login: () => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isLoading: boolean;
-}
-
-export interface GroupFunPost {
-  id: string;
-  userId?: string;
-  user: User;
-  title: string;
-  description: string;
-  campus: Campus;
-  participants: string[];
-  maxParticipants?: number;
-  eventDate?: string;
-  location?: string;
-  createdAt: string;
-  tags: string[];
 }

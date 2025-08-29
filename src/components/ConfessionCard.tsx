@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, MoreHorizontal, Flag, Clock } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, Flag, Clock, Users } from 'lucide-react';
 import { Confession, ReactionType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,6 +8,7 @@ interface ConfessionCardProps {
   confession: Confession;
   onReact: (confessionId: string, reactionType: ReactionType) => void;
   onComment: (confessionId: string, comment: string) => void;
+  onJoinCommunity?: (confessionId: string) => void;
 }
 
 const reactionEmojis: Record<ReactionType, string> = {
@@ -32,21 +33,24 @@ const campusNames: Record<string, string> = {
   ap: 'VIT-AP'
 };
 
-const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, onComment }) => {
+const ConfessionCard: React.FC<ConfessionCardProps> = ({ 
+  confession, 
+  onReact, 
+  onComment, 
+  onJoinCommunity 
+}) => {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showReactions, setShowReactions] = useState(false);
 
   const handleReact = (reactionType: ReactionType) => {
-    if (user) {
-      onReact(confession.id, reactionType);
-      setShowReactions(false);
-    }
+    onReact(confession.id, reactionType);
+    setShowReactions(false);
   };
 
   const handleComment = () => {
-    if (user && commentText.trim()) {
+    if (commentText.trim()) {
       onComment(confession.id, commentText.trim());
       setCommentText('');
     }
@@ -69,20 +73,20 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
 
   return (
     <motion.div
-      className={`rounded-2xl shadow-lg overflow-hidden backdrop-blur-md border transition-all duration-300 ${
+      className={`rounded-2xl shadow-xl overflow-hidden backdrop-blur-md border transition-all duration-300 ${
         confession.isGroupFun 
-          ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-400/30 hover:bg-purple-500/20' 
+          ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-400/30 hover:shadow-purple-500/20' 
           : 'bg-white/5 border-white/10 hover:bg-white/10'
       }`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      whileHover={{ y: -4, scale: 1.02 }}
+      whileHover={{ y: -4, scale: 1.01 }}
     >
       {/* Community Badge */}
       {confession.isGroupFun && (
-        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold px-3 py-1 text-center">
-          🌐 COMMUNITY
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold px-4 py-2 text-center">
+          🌐 COMMUNITY ACTIVITY
         </div>
       )}
 
@@ -90,7 +94,7 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
       <div className="p-6 pb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               confession.isGroupFun 
                 ? 'bg-gradient-to-br from-purple-500 to-pink-600' 
                 : 'bg-gradient-to-br from-blue-500 to-purple-600'
@@ -121,7 +125,7 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
         {/* Content */}
         <div className="space-y-4">
           {confession.contentText && (
-            <p className="text-gray-100 leading-relaxed">
+            <p className="text-gray-100 leading-relaxed text-lg">
               {confession.contentText}
             </p>
           )}
@@ -149,10 +153,10 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
       {/* Actions */}
       <div className="px-6 py-4 border-t border-white/10">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             <div className="relative">
               <button
-                onClick={() => setShowReactions(!showReactions)}
+                onClick={() => user ? setShowReactions(!showReactions) : null}
                 className="flex items-center space-x-2 text-gray-300 hover:text-red-400 transition-colors"
               >
                 <Heart size={18} />
@@ -160,9 +164,9 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
               </button>
               
               <AnimatePresence>
-                {showReactions && (
+                {showReactions && user && (
                   <motion.div
-                    className="absolute bottom-full left-0 mb-2 bg-black/80 backdrop-blur-md rounded-full shadow-lg border border-white/20 p-2 flex space-x-1"
+                    className="absolute bottom-full left-0 mb-2 bg-black/90 backdrop-blur-md rounded-full shadow-lg border border-white/20 p-2 flex space-x-1"
                     initial={{ opacity: 0, scale: 0.8, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8, y: 10 }}
@@ -183,12 +187,22 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
             </div>
             
             <button
-              onClick={() => setShowComments(!showComments)}
+              onClick={() => user ? setShowComments(!showComments) : null}
               className="flex items-center space-x-2 text-gray-300 hover:text-blue-400 transition-colors"
             >
               <MessageCircle size={18} />
               <span className="text-sm font-medium">{confession._count.comments}</span>
             </button>
+
+            {confession.isGroupFun && onJoinCommunity && (
+              <button
+                onClick={() => user ? onJoinCommunity(confession.id) : null}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all"
+              >
+                <Users size={16} />
+                <span>Join Chat</span>
+              </button>
+            )}
           </div>
           
           <button className="text-gray-400 hover:text-red-400 transition-colors">
@@ -209,7 +223,7 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
           >
             <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
               {/* Comment Input */}
-              {user && (
+              {user ? (
                 <div className="flex space-x-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-bold">
@@ -232,6 +246,10 @@ const ConfessionCard: React.FC<ConfessionCardProps> = ({ confession, onReact, on
                       Comment
                     </button>
                   </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-300 mb-3">Sign in to comment</p>
                 </div>
               )}
 
